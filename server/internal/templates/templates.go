@@ -3,7 +3,6 @@ package templates
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -44,7 +43,9 @@ func LoadTemplates() {
 
 	templatesFiles, err := initTemplateFiles()
 	if err != nil {
-		fmt.Println("error during TemplatesFiles init")
+		l.Panic().
+			Err(err).
+			Msg("failed to initialize templates")
 	}
 
 	setTemplateFiles(templatesFiles)
@@ -82,7 +83,6 @@ func initTemplateFiles() (*TemplateFiles, error) {
 	for _, file := range templateIDs {
 		f, err := os.Open(filepath.Join(templatesPath, file+".json"))
 		if err != nil {
-			fmt.Println("No template found")
 			return nil, err
 		}
 		defer f.Close()
@@ -91,7 +91,6 @@ func initTemplateFiles() (*TemplateFiles, error) {
 
 		dec := json.NewDecoder(f)
 		if err := dec.Decode(&template); err != nil {
-			fmt.Println("Cannot decode template")
 			return nil, err
 		}
 

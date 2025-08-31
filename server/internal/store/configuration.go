@@ -20,6 +20,8 @@ const (
 )
 
 func NewConfigurationRepository() *ConfigurationRepository {
+	l := tools.GetLogger()
+
 	ctx := context.Background()
 
 	dbPath := tools.GetDataSubPath(configurationDb)
@@ -28,23 +30,33 @@ func NewConfigurationRepository() *ConfigurationRepository {
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
 	if err != nil {
-		panic("failed to connect database")
+		l.Panic().
+			Err(err).
+			Msg("failed to connect database")
 	}
 
 	if err := db.AutoMigrate(&models.Service{}); err != nil {
-		panic("failed to migrate Services")
+		l.Panic().
+			Err(err).
+			Msg("failed to migrate Services")
 	}
 
 	if err := db.AutoMigrate(&models.App{}); err != nil {
-		panic("failed to migrate Apps")
+		l.Panic().
+			Err(err).
+			Msg("failed to migrate Apps")
 	}
 
 	if err := db.AutoMigrate(&models.Proxy{}); err != nil {
-		panic("failed to migrate Proxies")
+		l.Panic().
+			Err(err).
+			Msg("failed to migrate Proxies")
 	}
 
 	if err := db.AutoMigrate(&models.Notification{}); err != nil {
-		panic("failed to migrate Notifications")
+		l.Panic().
+			Err(err).
+			Msg("failed to migrate Notifications")
 	}
 
 	c := &ConfigurationRepository{db, ctx}
