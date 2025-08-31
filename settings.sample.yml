@@ -1,0 +1,9 @@
+apiKey: example
+host: 0.0.0.0
+
+templates:
+  repository: https://github.com/middlewarr/templates
+  branch: main
+
+log:
+  level: 1
