@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/middlewarr/server/internal/middlewares"
 	"github.com/middlewarr/server/internal/proxy"
 	"github.com/middlewarr/server/internal/store"
 	"github.com/middlewarr/server/internal/templates"
@@ -12,7 +11,7 @@ import (
 )
 
 func SetupAdminRoutes(r chi.Router, c *store.ConfigurationRepository) {
-	r.With(middlewares.WithAPIKey).Route("/admin", func(r chi.Router) {
+	r.With(withAPIKey).Route("/admin", func(r chi.Router) {
 		r.Route("/v1", func(r chi.Router) {
 			// Misc
 			r.Mount("/", newRoutesV1(c))

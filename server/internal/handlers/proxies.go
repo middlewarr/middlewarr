@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/middlewarr/server/internal/middlewares"
 	"github.com/middlewarr/server/internal/models"
 	"github.com/middlewarr/server/internal/proxy"
 	"github.com/middlewarr/server/internal/store"
@@ -24,7 +23,7 @@ func newProxiesRoutesV1(repository *store.ConfigurationRepository) chi.Router {
 	r.Get("/", h.getProxy)   // GET /proxy
 	r.Post("/", h.postProxy) // POST /proxy
 
-	r.With(middlewares.WithID).Group(func(r chi.Router) {
+	r.With(withID).Group(func(r chi.Router) {
 		r.Route("/{id:[0-9]+}", func(r chi.Router) {
 			r.Get("/", h.getProxyById)       // GET /proxy/{id}
 			r.Put("/", h.putProxyById)       // PUT /proxy/{id}
@@ -72,7 +71,7 @@ func (h proxiesHandlerV1) postProxy(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h proxiesHandlerV1) getProxyById(w http.ResponseWriter, r *http.Request) {
-	id := middlewares.GetIDFromContext(r.Context())
+	id := getIDFromContext(r.Context())
 
 	p, err := h.repository.ReadProxy(id)
 	if err != nil {
@@ -84,7 +83,7 @@ func (h proxiesHandlerV1) getProxyById(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h proxiesHandlerV1) putProxyById(w http.ResponseWriter, r *http.Request) {
-	id := middlewares.GetIDFromContext(r.Context())
+	id := getIDFromContext(r.Context())
 
 	var p *models.Proxy
 
@@ -112,7 +111,7 @@ func (h proxiesHandlerV1) putProxyById(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h proxiesHandlerV1) deleteProxyById(w http.ResponseWriter, r *http.Request) {
-	id := middlewares.GetIDFromContext(r.Context())
+	id := getIDFromContext(r.Context())
 
 	err := h.repository.DestroyProxy(id)
 	if err != nil {

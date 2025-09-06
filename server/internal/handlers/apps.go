@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/middlewarr/server/internal/middlewares"
 	"github.com/middlewarr/server/internal/models"
 	"github.com/middlewarr/server/internal/proxy"
 	"github.com/middlewarr/server/internal/store"
@@ -24,7 +23,7 @@ func newAppsRoutesV1(repository *store.ConfigurationRepository) chi.Router {
 	r.Get("/", h.getApp)   // GET /app
 	r.Post("/", h.postApp) // POST /app
 
-	r.With(middlewares.WithID).Group(func(r chi.Router) {
+	r.With(withID).Group(func(r chi.Router) {
 		r.Route("/{id:[0-9]+}", func(r chi.Router) {
 			r.Get("/", h.getAppById)       // GET /app/{id}
 			r.Put("/", h.putAppById)       // PUT /app/{id}
@@ -72,7 +71,7 @@ func (h appsHandlerV1) postApp(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h appsHandlerV1) getAppById(w http.ResponseWriter, r *http.Request) {
-	id := middlewares.GetIDFromContext(r.Context())
+	id := getIDFromContext(r.Context())
 
 	app, err := h.repository.ReadApp(id)
 	if err != nil {
@@ -84,7 +83,7 @@ func (h appsHandlerV1) getAppById(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h appsHandlerV1) putAppById(w http.ResponseWriter, r *http.Request) {
-	id := middlewares.GetIDFromContext(r.Context())
+	id := getIDFromContext(r.Context())
 
 	var app *models.App
 
@@ -112,7 +111,7 @@ func (h appsHandlerV1) putAppById(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h appsHandlerV1) deleteAppById(w http.ResponseWriter, r *http.Request) {
-	id := middlewares.GetIDFromContext(r.Context())
+	id := getIDFromContext(r.Context())
 
 	err := h.repository.DestroyApp(id)
 	if err != nil {
