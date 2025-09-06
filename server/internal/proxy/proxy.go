@@ -16,8 +16,8 @@ import (
 )
 
 const (
-	apiKeyHeader     string = "X-Api-Key"
-	apiKeyQueryParam string = "apikey"
+	apiKeyHeaderKey     string = "X-Api-Key"
+	apiKeyQueryParamKey string = "apikey"
 )
 
 type ProxyEndpoint struct {
@@ -106,8 +106,8 @@ func LoadProxy(c *store.ConfigurationRepository) {
 			}
 
 			pr.ProxyByKey[proxy.APIKey] = &ProxyConfig{
-				proxy,
-				parsedEndpoints,
+				proxy:     proxy,
+				endpoints: parsedEndpoints,
 			}
 		}
 	}
@@ -146,31 +146,26 @@ func parseEndpoints(endpoints map[string][]string) (ProxyEndpoints, error) {
 	return proxyEndpoints, nil
 }
 
-func isRequestAllowed(endpoints ProxyEndpoints, method string, path string) bool {
-	for _, endpoint := range endpoints {
-		if method == endpoint.Method && endpoint.PathRegex.MatchString(path) {
-			return true
-		}
+func getApiKey(apiKeyHeaderValue string, apiKeyQueryParamValue string) *string {
+	if apiKeyHeaderValue != "" {
+		return &apiKeyHeaderValue
 	}
 
-	return false
-}
-
-func getApiKey(apiKey string, apiKeyParam string) string {
-	if apiKey != "" {
-		return apiKey
+	if apiKeyQueryParamValue != "" {
+		return &apiKeyQueryParamValue
 	}
 
-	return apiKeyParam
+	return nil
 }
 
 func GetProxyHandle(w http.ResponseWriter, r *http.Request) {
 	l := tools.GetLogger()
 
-	apiKey := r.Header.Get(apiKeyHeader)
-	apiKeyParam := r.URL.Query().Get(apiKeyQueryParam)
+	apiKeyHeaderValue := r.Header.Get(apiKeyHeaderKey)
+	apiKeyQueryParamValue := r.URL.Query().Get(apiKeyQueryParamKey)
 
-	if apiKey == "" && apiKeyParam == "" {
+	apiKey := getApiKey(apiKeyHeaderValue, apiKeyQueryParamValue)
+	if apiKey == nil {
 		http.Error(w, "", http.StatusUnauthorized)
 
 		l.Error().
@@ -181,7 +176,7 @@ func GetProxyHandle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	proxyConfig, ok := getProxyRouter().ProxyByKey[getApiKey(apiKey, apiKeyParam)]
+	proxyConfig, ok := getProxyRouter().ProxyByKey[*apiKey]
 	if !ok {
 		http.Error(w, "", http.StatusUnauthorized)
 
@@ -195,6 +190,7 @@ func GetProxyHandle(w http.ResponseWriter, r *http.Request) {
 
 	app := proxyConfig.proxy.App
 	service := proxyConfig.proxy.Service
+	proxyID := fmt.Sprintf("%03d_%03d", app.ID, service.ID)
 
 	if !*app.IsActive {
 		http.Error(w, "", http.StatusUnauthorized)
@@ -217,25 +213,6 @@ func GetProxyHandle(w http.ResponseWriter, r *http.Request) {
 		Str("request_method", r.Method).
 		Str("request_url", tools.SanitizeURI(r)).
 		Msg("Proxing request")
-
-	if !isRequestAllowed(proxyConfig.endpoints, r.Method, r.URL.Path) {
-		w.Header().Set("Cache-Control", "no-cache, no-store")
-		w.Header().Set("Expires", "-1")
-		w.Header().Set("Pragma", "no-cache")
-
-		http.Error(w, "", http.StatusNotFound)
-
-		l.Error().
-			Str("proxy_service", service.Name).
-			Str("proxy_app", app.Name).
-			Str("proxy_type", service.Type).
-			Str("proxy_url", service.URL).
-			Str("request_client", r.RemoteAddr).
-			Str("request_method", r.Method).
-			Str("request_url", tools.SanitizeURI(r)).
-			Msg("Forbidden, endpoint not allowed")
-		return
-	}
 
 	serviceUrl, err := url.Parse(service.URL)
 	if err != nil {
@@ -260,28 +237,29 @@ func GetProxyHandle(w http.ResponseWriter, r *http.Request) {
 		proxy.Director = func(req *http.Request) {
 			originalDirector(req)
 
-			if req.URL.Query().Get(apiKeyQueryParam) != "" {
-				q := req.URL.Query()
-				q.Set(apiKeyQueryParam, service.APIKey)
+			// Remove the `apikey` query param.
+			q := req.URL.Query()
+			q.Del(apiKeyQueryParamKey)
 
-				req.URL.RawQuery = q.Encode()
+			req.URL.RawQuery = q.Encode()
 
-				// Delete the unwanted `X-Api-Key` header if the `apikey` param is set.
-				req.Header.Del(apiKeyHeader)
-			} else {
-				req.Header.Set(apiKeyHeader, service.APIKey)
-
-				// Delete the unwanted `apikey` param if the `X-Api-Key` header is set.
-				q := req.URL.Query()
-				q.Del(apiKeyQueryParam)
-
-				req.URL.RawQuery = q.Encode()
-			}
+			// Provide the API key using the X-Api-Key header.
+			req.Header.Set(apiKeyHeaderKey, service.APIKey)
 
 			req.Host = serviceUrl.Host
 		}
 
-		proxy.ServeHTTP(w, r)
+		r.Header.Set("X-Proxy-Id", proxyID)
+		r.Header.Set("X-Proxy-App", app.Name)
+		r.Header.Set("X-Proxy-Service", service.Name)
+
+		handler := chainMiddlewares(
+			proxy,
+			middlewareLogRequest(),
+			middlewareValidateRequest(proxyConfig.endpoints),
+		)
+
+		handler.ServeHTTP(w, r)
 	})
 
 	proxyHandler.ServeHTTP(w, r)

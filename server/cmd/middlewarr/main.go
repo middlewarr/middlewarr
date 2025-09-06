@@ -14,7 +14,6 @@ import (
 	"github.com/go-chi/cors"
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/middlewarr/server/internal/handlers"
-	"github.com/middlewarr/server/internal/middlewares"
 	"github.com/middlewarr/server/internal/proxy"
 	"github.com/middlewarr/server/internal/store"
 	"github.com/middlewarr/server/internal/templates"
@@ -44,8 +43,6 @@ func main() {
 			AllowCredentials: false,
 			MaxAge:           300,
 		}))
-
-		r.Use(middlewares.RequestLogger)
 
 		// Internal: /api/admin/*
 		handlers.SetupAdminRoutes(r, c)

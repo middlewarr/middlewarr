@@ -12,14 +12,14 @@ import (
 
 // With API Key
 const (
-	apiKeyHeader string = "X-Api-Key"
+	apiKeyHeaderKey string = "X-Api-Key"
 )
 
 func withAPIKey(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		s := tools.GetSettings()
 
-		apiKey := r.Header.Get(apiKeyHeader)
+		apiKey := r.Header.Get(apiKeyHeaderKey)
 		serviceApiKey := s.String("apiKey")
 
 		if apiKey != serviceApiKey {
